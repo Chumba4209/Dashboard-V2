@@ -1,0 +1,29 @@
+//test whether your dht11/22 is working
+
+#include <Arduino.h>
+#include <DHT.h>
+
+#define DHT_PIN  22
+#define DHT_TYPE DHT22
+
+DHT dht(DHT_PIN, DHT_TYPE);
+
+void setup() {
+    Serial.begin(115200);
+    pinMode(27, INPUT_PULLUP);
+    dht.begin();
+    Serial.println("DHT22 Test Starting...");
+}
+
+void loop() {
+    delay(2000);
+    float t = dht.readTemperature();
+    float h = dht.readHumidity();
+
+    if (isnan(t) || isnan(h)) {
+        Serial.println("Failed to read from DHT22! Check wiring.");
+    } else {
+        Serial.print("Temp: "); Serial.print(t); Serial.println("°C");
+        Serial.print("Humidity: "); Serial.print(h); Serial.println("%");
+    }
+}

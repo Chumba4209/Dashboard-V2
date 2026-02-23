@@ -1,6 +1,10 @@
 #include <Arduino.h>
 #include <TFT_eSPI.h>
 #include <lvgl.h>
+#include <DHT.h>
+#define DHT_PIN 27
+#define DHT_TYPE DHT22
+DHT dht(DHT_PIN, DHT_TYPE);
 
 #define SCREEN_WIDTH  320
 #define SCREEN_HEIGHT 240
@@ -206,6 +210,7 @@ lv_obj_align(y_label_bot, LV_ALIGN_BOTTOM_RIGHT, -2, -8);
 
 void setup() {
     Serial.begin(115200);
+    dht.begin();
 
     tft.init();
     tft.setRotation(1);
@@ -223,33 +228,47 @@ void setup() {
     create_dashboard();
 }
 
-void loop(){
+void loop() {
     lv_timer_handler();
 
-    // Simulate new readings every 2 seconds
     static uint32_t last_update = 0;
     if (millis() - last_update > 2000) {
         last_update = millis();
 
-        // Fake data - we'll replace with real DHT22 later
-        float fake_temp = 22.0 + random(-3, 6);
-        float fake_hum  = 60.0 + random(-5, 10);
+        float real_temp = dht.readTemperature();
+        float real_hum  = dht.readHumidity();
 
-        // Update chart
-        lv_chart_set_next_value(chart, temp_series, (int)fake_temp);
-        lv_chart_set_next_value(chart, humidity_series, (int)fake_hum);
-        lv_chart_refresh(chart);
+        if (!isnan(real_temp) && !isnan(real_hum)) {
+            // Update chart
+            lv_chart_set_next_value(chart, temp_series, (int)real_temp);
+            lv_chart_set_next_value(chart, humidity_series, (int)real_hum);
+            lv_chart_refresh(chart);
 
-        // Update arc gauges
-        lv_arc_set_value(temp_arc, (int)fake_temp);
-        lv_arc_set_value(humidity_arc, (int)fake_hum);
+            // Update arc gauges
+            lv_arc_set_value(temp_arc, (int)real_temp);
+            lv_arc_set_value(humidity_arc, (int)real_hum);
 
-        // Update value labels
-        char buf[16];
-        snprintf(buf, sizeof(buf), "%.1f°C", fake_temp);
-        lv_label_set_text(temp_value_label, buf);
-        snprintf(buf, sizeof(buf), "%.0f%%", fake_hum);
-        lv_label_set_text(humidity_value_label, buf);
+            // Update value labels
+            char buf[16];
+            snprintf(buf, sizeof(buf), "%.1f°C", real_temp);
+            lv_label_set_text(temp_value_label, buf);
+            snprintf(buf, sizeof(buf), "%.0f%%", real_hum);
+            lv_label_set_text(humidity_value_label, buf);
+
+            // Alert colors for temp gauge
+            if (real_temp > 35.0 || real_temp < 10.0) {
+                lv_obj_set_style_arc_color(temp_arc, lv_color_hex(0xE53935), LV_PART_INDICATOR);
+            } else {
+                lv_obj_set_style_arc_color(temp_arc, lv_color_hex(0x4CAF50), LV_PART_INDICATOR);
+            }
+
+            // Alert colors for humidity gauge
+            if (real_hum > 80.0 || real_hum < 20.0) {
+                lv_obj_set_style_arc_color(humidity_arc, lv_color_hex(0xE53935), LV_PART_INDICATOR);
+            } else {
+                lv_obj_set_style_arc_color(humidity_arc, lv_color_hex(0x2196F3), LV_PART_INDICATOR);
+            }
+        }
     }
 
     delay(5);
